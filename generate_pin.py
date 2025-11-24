@@ -1,57 +1,51 @@
 import json
 import random
 import requests
-import re
 from pathlib import Path
 
-INSTAGRAM_URL = "https://www.instagram.com/rina_vellichor/"
+USERNAME = "rina_vellichor"
+PROFILE_API = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={USERNAME}"
 
-def get_instagram_posts(username="rina_vellichor"):
-    """Scrapes Instagram profile and extracts image URLs from all posts."""
-    
-    url = f"https://www.instagram.com/{username}/"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "*/*"
+}
 
-    response = requests.get(url, headers=headers)
+def get_instagram_posts():
+    """Fetch posts from Instagram using the public API endpoint."""
+    response = requests.get(PROFILE_API, headers=HEADERS)
+
     if response.status_code != 200:
-        raise Exception("Failed to load Instagram page")
+        raise Exception(f"Instagram API error: {response.status_code}")
 
-    # Extract sharedData JSON object
-    shared_data_match = re.search(r"window\._sharedData = (.*?);</script>", response.text)
-    if not shared_data_match:
-        raise Exception("Could not extract sharedData")
+    data = response.json()
 
-    shared_data = json.loads(shared_data_match.group(1))
-    
-    # Navigate the JSON structure
-    posts = shared_data["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]
+    posts = data["data"]["user"]["edge_owner_to_timeline_media"]["edges"]
 
-    image_urls = []
-    for post in posts:
-        node = post["node"]
+    images = []
+
+    for item in posts:
+        node = item["node"]
 
         if node["__typename"] == "GraphImage":
-            image_urls.append(node["display_url"])
+            images.append(node["display_url"])
 
         elif node["__typename"] == "GraphSidecar":
-            first_img = node["edge_sidecar_to_children"]["edges"][0]["node"]["display_url"]
-            image_urls.append(first_img)
+            first = node["edge_sidecar_to_children"]["edges"][0]["node"]["display_url"]
+            images.append(first)
 
-        # skip GraphVideo (we decided no videos)
-    
-    return image_urls
+        # skip videos
+
+    return images
 
 
-def load_json_file(filename):
-    """Loads JSON list from repository file."""
+def load_json_list(filename):
     with open(filename, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def main():
-    print("Scraping Instagram...")
+    print("Fetching Instagram posts...")
     posts = get_instagram_posts()
 
     if not posts:
@@ -59,13 +53,13 @@ def main():
 
     random_image = random.choice(posts)
 
-    titles = load_json_file("titles.json")["titles"]
-    descriptions = load_json_file("descriptions.json")["descriptions"]
+    titles = load_json_list("titles.json")["titles"]
+    descriptions = load_json_list("descriptions.json")["descriptions"]
 
     random_title = random.choice(titles)
     random_description = random.choice(descriptions)
 
-    output_data = {
+    output = {
         "image_url": random_image,
         "title": random_title,
         "description": random_description,
@@ -75,9 +69,9 @@ def main():
     Path("output").mkdir(exist_ok=True)
 
     with open("output/pin.json", "w", encoding="utf-8") as f:
-        json.dump(output_data, f, ensure_ascii=False, indent=4)
+        json.dump(output, f, ensure_ascii=False, indent=4)
 
-    print("Generated pin.json")
+    print("✔ pin.json generated!")
 
 
 if __name__ == "__main__":
