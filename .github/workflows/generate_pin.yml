@@ -1,0 +1,35 @@
+name: Generate random pin data
+
+on:
+  schedule:
+    # каждые 4 часа
+    - cron: "0 */4 * * *"
+  # возможность запустить вручную
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate pin.json
+        run: python generate_pin.py
+
+      - name: Commit and push pin.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add output/pin.json
+          git commit -m "Update pin.json" || echo "No changes to commit"
+          git push
