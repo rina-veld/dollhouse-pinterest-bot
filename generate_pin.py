@@ -1,66 +1,52 @@
+import os
 import json
 import random
-import requests
 from pathlib import Path
 
-USERNAME = "rina_vellichor"
-PROFILE_API = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={USERNAME}"
+GITHUB_USER = "rina-veld"  # ← замени на своё имя пользователя на GitHub, если другое
+REPO_NAME = "dollhouse-pinterest-bot"
+BRANCH = "main"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0",
-    "Accept": "*/*"
-}
+def get_random_image():
+    """Returns a random image file name from the images folder."""
+    images_path = Path("images")
+    if not images_path.exists():
+        raise Exception("images/ folder not found")
 
-def get_instagram_posts():
-    """Fetch posts from Instagram using the public API endpoint."""
-    response = requests.get(PROFILE_API, headers=HEADERS)
+    files = [f for f in images_path.iterdir() if f.is_file()]
 
-    if response.status_code != 200:
-        raise Exception(f"Instagram API error: {response.status_code}")
+    if not files:
+        raise Exception("No files in images/ folder")
 
-    data = response.json()
-
-    posts = data["data"]["user"]["edge_owner_to_timeline_media"]["edges"]
-
-    images = []
-
-    for item in posts:
-        node = item["node"]
-
-        if node["__typename"] == "GraphImage":
-            images.append(node["display_url"])
-
-        elif node["__typename"] == "GraphSidecar":
-            first = node["edge_sidecar_to_children"]["edges"][0]["node"]["display_url"]
-            images.append(first)
-
-        # skip videos
-
-    return images
+    random_file = random.choice(files)
+    return random_file.name
 
 
-def load_json_list(filename):
+def load_json(filename):
     with open(filename, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def main():
-    print("Fetching Instagram posts...")
-    posts = get_instagram_posts()
+    print("Selecting random image...")
 
-    if not posts:
-        raise Exception("No posts found")
+    # pick a random image name
+    image_file = get_random_image()
 
-    random_image = random.choice(posts)
+    # build RAW github URL
+    image_url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{REPO_NAME}/{BRANCH}/images/{image_file}"
 
-    titles = load_json_list("titles.json")["titles"]
-    descriptions = load_json_list("descriptions.json")["descriptions"]
+    print("Random image:", image_url)
+
+    # load titles & descriptions
+    titles = load_json("titles.json")["titles"]
+    descriptions = load_json("descriptions.json")["descriptions"]
 
     random_title = random.choice(titles)
     random_description = random.choice(descriptions)
 
-    output = {
-        "image_url": random_image,
+    output_data = {
+        "image_url": image_url,
         "title": random_title,
         "description": random_description,
         "link": "https://rina-vellichor.com/"
@@ -69,9 +55,9 @@ def main():
     Path("output").mkdir(exist_ok=True)
 
     with open("output/pin.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=4)
+        json.dump(output_data, f, ensure_ascii=False, indent=4)
 
-    print("✔ pin.json generated!")
+    print("✔ pin.json created successfully")
 
 
 if __name__ == "__main__":
