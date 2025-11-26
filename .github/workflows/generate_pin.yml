@@ -3,7 +3,7 @@ name: Generate random pin data
 on:
   schedule:
     # каждые 4 часа
-    - cron: "0 */4 * * *"
+    - cron: "0 */3 * * *"
   # возможность запустить вручную
   workflow_dispatch:
 
